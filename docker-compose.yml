@@ -1,0 +1,81 @@
+services:
+
+  influxdb:
+    image: influxdb:2.7
+    container_name: lab5-influxdb
+    restart: unless-stopped
+
+    environment:
+      DOCKER_INFLUXDB_INIT_MODE: setup
+      DOCKER_INFLUXDB_INIT_USERNAME: ${INFLUXDB_USERNAME}
+      DOCKER_INFLUXDB_INIT_PASSWORD: ${INFLUXDB_PASSWORD}
+      DOCKER_INFLUXDB_INIT_ORG: ${INFLUXDB_ORG}
+      DOCKER_INFLUXDB_INIT_BUCKET: ${INFLUXDB_BUCKET}
+      DOCKER_INFLUXDB_INIT_ADMIN_TOKEN: ${INFLUXDB_TOKEN}
+
+    ports:
+      - "8086:8086"
+
+    volumes:
+      - influxdb_data:/var/lib/influxdb2
+
+  ingestor:
+    build: ./ingestor
+    container_name: lab5-ingestor
+    restart: unless-stopped
+
+    environment:
+      MQTT_BROKER: host.docker.internal
+      MQTT_PORT: 1883
+      MQTT_TOPIC: lab5/sensores
+
+      MQTT_USER: ${MQTT_USER}
+      MQTT_PASSWORD: ${MQTT_PASSWORD}
+
+      INFLUX_URL: http://influxdb:8086
+      INFLUX_TOKEN: ${INFLUXDB_TOKEN}
+      INFLUX_ORG: ${INFLUXDB_ORG}
+      INFLUX_BUCKET: ${INFLUXDB_BUCKET}
+
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+    depends_on:
+      - influxdb
+
+
+  grafana:
+    image: grafana/grafana-oss:latest
+    container_name: lab5-grafana
+    restart: unless-stopped
+
+    ports:
+      - "3000:3000"
+
+    volumes:
+      - grafana_data:/var/lib/grafana
+
+    depends_on:
+      - influxdb
+
+  publisher:
+    build: ./publisher
+    container_name: lab5-publisher
+    restart: unless-stopped
+
+    environment:
+      MQTT_BROKER: host.docker.internal
+      MQTT_PORT: 1883
+      MQTT_TOPIC: lab5/sensores
+
+      MQTT_USER: ${MQTT_USER}
+      MQTT_PASSWORD: ${MQTT_PASSWORD}
+
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+
+
+volumes:
+  influxdb_data:
+  grafana_data:
